@@ -23,10 +23,6 @@ import gym
 from gym import wrappers
 import pprint as pp
 
-#####################  hyper parameters  ####################
-
-SAMPLE_THRESHOLD=1e3
-
 ###############################  Actor  ####################################
 
 class Actor(object):
