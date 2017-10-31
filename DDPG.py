@@ -31,13 +31,14 @@ class Actor(object):
 	output: action
 	under a deterministic policy.
 	"""
-	def __init__(self,sess,state_dim,action_dim,action_bound,learning_rate,tau):
+	def __init__(self,sess,state_dim,action_dim,action_bound,learning_rate,tau,BATCH_SIZE):
 		"""
 		The initializer for actor.
 		state_dim: the input dim of the network
 		action_dim: the output dim of the network
 		action_bound: the bound used for clipping the output of the network
 		tau: the ratio for update the target networks
+		BATCH_SIZE: used for computing the average of gradients over the batch
 		"""
 		self.sess=sess
 		self.state_dim=state_dim
@@ -71,7 +72,7 @@ class Actor(object):
 
 		#Optimization Op
 		#-self.learning_rate for ascent policy
-		opt=tf.train.AdamOptimizer(-self.learning_rate)
+		opt=tf.train.AdamOptimizer(-self.learning_rate/BATCH_SIZE)
 		self.optimize=opt.apply_gradients(zip(self.actor_gradients,self.network_params))
 
 		self.num_trainable_vars=len(self.network_params)+len(self.target_network_params)
@@ -427,7 +428,7 @@ def main(args):
 		#Cause this is the minimal feasible version
 		assert(env.action_space.high==-env.action_space.low)
 
-		actor=Actor(sess,state_dim,action_dim,action_bound,float(args['actor_lr']),float(args['tau']))
+		actor=Actor(sess,state_dim,action_dim,action_bound,float(args['actor_lr']),float(args['tau']),float(args['batch_size']))
 
 		critic=Critic(sess,state_dim,action_dim,float(args['critic_lr']),float(args['tau']),float(args['gamma']),actor.get_num_trainable_vars())
 
@@ -441,6 +442,10 @@ def main(args):
 		#TODO: Wrappers close
 
 if __name__ == "__main__":
+
+	#File dir
+	path='Pendulum/exp2_ddpg_N'
+
 	parser=argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
 	# agent parameters, default arguments are provided according to the paper
@@ -458,10 +463,11 @@ if __name__ == "__main__":
 	parser.add_argument('--max-step-num', help='max step of 1 episode', default=1000)
 	parser.add_argument('--render-env', help='render the gym env', action='store_true')
 	parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
-	parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./results/gym_ddpg')
-	parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./results/tf_ddpg')
+	parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./monitor/'+path)
+	parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./tensorboard/'+path)
 
-	parser.set_defaults(render_env=True)
+	#We use the gym wrappers to save the training records
+	parser.set_defaults(render_env=False)
 	parser.set_defaults(use_gym_monitor=True)
 
 	args = vars(parser.parse_args())
