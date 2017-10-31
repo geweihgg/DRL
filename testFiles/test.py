@@ -112,24 +112,39 @@
 # 	writer=tf.summary.FileWriter('/home/moran/DRL/visualization',sess.graph)
 
 #-------------------------------------------------------------
-import tensorflow as tf
+# import tensorflow as tf
 
-sess=tf.Session()
+# sess=tf.Session()
 
-x=tf.placeholder(dtype=tf.float32,shape=[None,3])
-w=tf.constant([1,2,3,4,5,6],dtype=tf.float32,shape=[2,3])
-y=x*w
+# x=tf.placeholder(dtype=tf.float32,shape=[None,3])
+# w=tf.constant([1,2,3,4,5,6],dtype=tf.float32,shape=[2,3])
+# y=x*w
 
-tf.summary.scalar("y",y)
-merged_summary=tf.summary.merge_all()
+# tf.summary.scalar("y",y)
+# merged_summary=tf.summary.merge_all()
 
-sess.run(tf.global_variables_initializer())
+# sess.run(tf.global_variables_initializer())
 
-for i in range(100):
-	inputs=[[i,i+1,i+2]]
-	_,summary=sess.run([y,merged_summary],feed_dict={x: inputs})
-	writer.add_summary(summary,i)
+# for i in range(100):
+# 	inputs=[[i,i+1,i+2]]
+# 	_,summary=sess.run([y,merged_summary],feed_dict={x: inputs})
+# 	writer.add_summary(summary,i)
+#-------------------------------------------------------------
+import gym
+# env = gym.make('CarRacing-v0')
+# env=gym.make('LunarLanderContinuous-v2')
+env=gym.make('BipedalWalker-v2')
+# print env.observation_space
+# print env.action_space
 
-
-
+for i_episode in range(100):
+	observation = env.reset()
+	for t in range(1000):
+		env.render()
+		# print(observation)
+		action = env.action_space.sample()
+		observation, reward, done, info = env.step(action)
+		if done:
+			print("Episode finished after {} timesteps".format(t+1))
+			break
 

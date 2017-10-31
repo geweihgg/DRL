@@ -334,7 +334,7 @@ def train(sess,env,args,actor,critic,actor_noise):
 		s=env.reset()    #The initial observation
 
 		ep_reward=0        #What's this? This means that the total reward in this episode.
-		ep_ave_max_q=0    #What's this?  Sum up Q(s,a) in every step and average over total episode.
+		ep_ave_max_q=0    #What's this?  Sum up max(Q(s,a)) in every step and average over total episode.
 
 		for j in range(int(args['max_step_num'])):    #'for loop' for steps in one episode
 			if args['render_env']:
@@ -398,6 +398,7 @@ def train(sess,env,args,actor,critic,actor_noise):
 			s=s_
 			ep_reward+=r
 
+			#Pendulum env won't be done until 200 steps, thus the 'ep_reward' is the total rewards of 200 steps.
 			if terminal:
 				summary_str=sess.run(summary_ops,feed_dict={
 					summary_vars[0]:ep_reward,
@@ -436,15 +437,23 @@ def main(args):
 		actor_noise=OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
 
 		#TODO: Wrappers
+		if args['use_gym_monitor']:
+			if not args['render_env']:    #render_env=False
+				env=wrappers.Monitor( \
+					env, args['monitor_dir'],video_callable=False,force=True)
+		else:
+			env=wrappers.Monitor(env,args['monitor_dir'],force=True)
 
 		train(sess,env,args,actor,critic,actor_noise)
 
 		#TODO: Wrappers close
+		if args['use_gym_monitor']:
+			env.monitor.close()
 
 if __name__ == "__main__":
 
 	#File dir
-	path='Pendulum/exp2_ddpg_N'
+	path='MountainCarContinuous/exp1_ddpg_monitor'
 
 	parser=argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
@@ -467,7 +476,7 @@ if __name__ == "__main__":
 	parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./tensorboard/'+path)
 
 	#We use the gym wrappers to save the training records
-	parser.set_defaults(render_env=False)
+	parser.set_defaults(render_env=True)
 	parser.set_defaults(use_gym_monitor=True)
 
 	args = vars(parser.parse_args())
