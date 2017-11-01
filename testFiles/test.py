@@ -130,21 +130,82 @@
 # 	_,summary=sess.run([y,merged_summary],feed_dict={x: inputs})
 # 	writer.add_summary(summary,i)
 #-------------------------------------------------------------
-import gym
-# env = gym.make('CarRacing-v0')
-# env=gym.make('LunarLanderContinuous-v2')
-env=gym.make('BipedalWalker-v2')
+# import gym
+# # env = gym.make('CarRacing-v0')
+# # env=gym.make('LunarLanderContinuous-v2')
+# env=gym.make('CarRacing-v0')
 # print env.observation_space
+# print len(env.observation_space.shape)
+# print env.action_space.high
+# print env.action_space.low
+# bound=[list(env.action_space.high),list(env.action_space.low)]
+
+# h_l=env.action_space.high-env.action_space.low
+# print h_l
+
+
+# print bound
+# # observation=env.reset()
+# # print observation[0]
+
 # print env.action_space
 
-for i_episode in range(100):
-	observation = env.reset()
-	for t in range(1000):
-		env.render()
-		# print(observation)
-		action = env.action_space.sample()
-		observation, reward, done, info = env.step(action)
-		if done:
-			print("Episode finished after {} timesteps".format(t+1))
-			break
+# # for i_episode in range(100):
+# # 	observation = env.reset()
+# # 	for t in range(1000):
+# # 		env.render()
+# # 		# print(observation)
+# # 		action = env.action_space.sample()
+# # 		observation, reward, done, info = env.step(action)
+# # 		if done:
+# # 			print("Episode finished after {} timesteps".format(t+1))
+# # 			break
 
+#-------------------------------------------------------------
+#test for gym wrappers
+
+
+
+
+
+
+
+
+
+
+#-------------------------------------------------------------
+# import tensorflow as tf
+
+# sess=tf.InteractiveSession()
+
+# a=tf.constant(value=[1,2,3,4,5,6],dtype=tf.float32,shape=[1,6])
+
+# sess.run(tf.global_variables_initializer())
+
+# print sess.run(a)
+
+# b=tf.reshape(a,shape=[-1,3])
+
+# print tf.shape(b)[0]
+
+# print sess.run(b)
+
+#-------------------------------------------------------------
+import tensorflow as tf
+
+sess=tf.InteractiveSession()
+
+a=tf.constant(value=[1,2,3,4,5,6],dtype=tf.float32,shape=[2,3])
+
+b=tf.constant(value=[4,5,6],dtype=tf.float32,shape=[1,3])
+b=tf.tile(b,[tf.shape(a)[0],1])
+
+c=tf.constant(value=[3,5,7],dtype=tf.float32,shape=[1,3])
+print sess.run(b)
+
+x=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+y=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+z=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+print sess.run(tf.concat([x[0],y[0],z[0]],0))
+
+print sess.run(tf.multiply(a,b)+c)

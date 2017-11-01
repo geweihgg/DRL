@@ -1,3 +1,4 @@
 exp1_ddpg：actor gradient没有除以BATCH_SIZE
 exp2_ddpg_N：actor gradient除以BATCH_SIZE
 exp3_ddpg_monitor：加入了Monitor代码，并打开了Monitor
+exp4_ddpg_L2：对Q网络和A网络引入了L2正则化

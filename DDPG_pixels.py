@@ -4,6 +4,11 @@ Deep Deterministic Policy Gradient (DDPG), Reinforcement Learning.
 
 DDPG is Actor Critic Based Algorithm.
 
+Use raw pixels as inputs.
+Only use batch normalization for input layers.
+
+This version only solve the CarRacing-v0 env.
+
 <Continuous Control with Deep Reinforcement Learning>
 
 using:
@@ -79,24 +84,59 @@ class Actor(object):
 
 	def create_actor_network(self):
 		"""
-		Create a simple network for low dimensional inputs.
-		Two fully connected hidden layers.
+		Create a conv network for raw-pixel inputs.
+		Three conv layers wihout pooling + Two fully connected layers.
 		"""
-		inputs=tflearn.input_data(shape=[None,self.state_dim])    #[None, self.state_dim]
-		net=tflearn.layers.normalization.batch_normalization(inputs)
-		w_init1=tflearn.initializations.uniform(minval=-tf.div(1.0,tf.sqrt(float(self.state_dim))),maxval=tf.div(1.0,tf.sqrt(float(self.state_dim))))
-		net=tflearn.fully_connected(net,400,weights_init=w_init1)    #[self.state_dim, 400]
-		net=tflearn.layers.normalization.batch_normalization(net)
-		net=tflearn.activations.relu(net)
-		w_init2=tflearn.initializations.uniform(minval=-tf.div(1.0,tf.sqrt(float(400))),maxval=tf.div(1.0,tf.sqrt(float(400))))
-		net=tflearn.fully_connected(net,300,weights_init=w_init2)    #[self.state_dim, 300]
-		net=tflearn.layers.normalization.batch_normalization(net)
-		net=tflearn.activations.relu(net)
-		#As in the paper, final layer weights are initialized to Uniform[-3e-3,3e-3]
-		w_init=tflearn.initializations.uniform(minval=-3e-3,maxval=3e-3)
-		outputs=tflearn.fully_connected(net,self.action_dim,activation='tanh')    #[None,self.action_dim]
-		#Scale output to -action_bound to action_bound
-		scaled_out=tf.multiply(outputs,self.action_bound)    #[None, self.action_dim]
+
+		#self.state_dim: (96,96,3)
+		state_dim=self.state_dim
+		inputs=tflearn.input_data(shape=[None,state_dim[0],state_dim[1],state_dim[2]])
+		# net=tflearn.layers.normalization.batch_normalization(inputs)
+		net=inputs
+
+		#conv_2d(weights_init='uniform')-->Uniform[0,1]
+		#It's too large, thus we may get 'nan' outputs
+		#So I use the same init as the last layer mentioned in the paper
+		#So as to ensure the init outputs of the actor/critic network near zero
+		#But for the actor network, if it's too small, the agent will be overcautious,
+		#and then it will take a long time to learn sth. 
+		minv=-3e-4
+		maxv=3e-4
+
+		weight_init_conv1=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_conv2=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_conv3=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_fc1=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv1,name='conv1')
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv2,name='conv2')
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv3,name='conv3')
+		net=tflearn.fully_connected(net,200,weights_init=weight_init_fc1,name='fc1')
+
+		w_init_s=tflearn.initializations.uniform(minval=-3e-4,maxval=3e-4)
+		w_init_g=tflearn.initializations.uniform(minval=-3e-4,maxval=3e-4)
+		w_init_b=tflearn.initializations.uniform(minval=-3e-4,maxval=3e-4)
+
+		steer=tflearn.fully_connected(net,1,activation='tanh',weights_init=w_init_s)
+		gas=tflearn.fully_connected(net,1,activation='sigmoid',weights_init=w_init_g)
+		brake=tflearn.fully_connected(net,1,activation='sigmoid',weights_init=w_init_b)
+
+		outputs=tf.concat([steer,gas,brake],1)
+		scaled_out=outputs
+
+		# #if we combine these action outputs togther, we'll have some problems.
+		# outputs=tflearn.fully_connected(net,self.action_dim,activation='tanh',weights_init=w_init)
+		# #action_space.high-action_space.low
+		# h_l=tf.constant(value=(self.action_bound[0]-self.action_bound[1]),dtype=tf.float32,shape=[1,self.action_dim])
+		# print self.sess.run(h_l)
+		# #tile the h_l to [None,self.action_dim]
+		# #output-->[None,self.action_dim]
+		# h_l_tile=tf.tile(h_l,[tf.shape(outputs)[0],1])
+		# #(h+l)/2
+		# h_l_ave=tf.constant(value=((self.action_bound[0]+self.action_bound[1])/2.0),dtype=tf.float32,shape=[1,self.action_dim])
+		# print self.sess.run(h_l_ave)
+		# scaled_out=tf.multiply(tf.div(outputs,2.0),h_l_tile)+h_l_ave
+		
 		return inputs,outputs,scaled_out
 
 	def train(self,inputs,a_gradient):
@@ -176,24 +216,42 @@ class Critic(object):
 		self.action_gradient=tf.gradients(self.outputs,self.actions)
 
 	def create_critic_network(self):
-		inputs=tflearn.input_data(shape=[None,self.state_dim])    #[None, self.state_dim]
+		state_dim=self.state_dim
+		inputs=tflearn.input_data(shape=[None,state_dim[0],state_dim[1],state_dim[2]]) 
 		actions=tflearn.input_data(shape=[None,self.action_dim])    #[None, self.action_dim]
+
 		net=tflearn.layers.normalization.batch_normalization(inputs)
-		w_init1=tflearn.initializations.uniform(minval=-tf.div(1.0,tf.sqrt(float(self.state_dim))),maxval=tf.div(1.0,tf.sqrt(float(self.state_dim))))
-		net=tflearn.fully_connected(net,400,weights_init=w_init1,regularizer='L2',weight_decay=self.weight_decay)
-		net=tflearn.layers.normalization.batch_normalization(net)
-		net=tflearn.activations.relu(net)
+
+		#conv_2d(weights_init='uniform')-->Uniform[0,1]
+		#It's too large, thus we may get 'nan' outputs
+		#So I use the same init as the last layer mentioned in the paper
+		#So as to ensure the init outputs of the actor/critic network near zero		
+		minv=-3e-4
+		maxv=3e-4
+		weight_init_conv1=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_conv2=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_conv3=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv1,name='conv1',regularizer='L2',weight_decay=self.weight_decay)
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv2,name='conv2',regularizer='L2',weight_decay=self.weight_decay)
+		net=tflearn.conv_2d(net,32,5,activation='relu',weights_init=weight_init_conv3,name='conv3',regularizer='L2',weight_decay=self.weight_decay)
 
 		#Add the action tensor in the 2nd hidden layer
 		#Use two temp layers to get the corresponding weights and biases
-		w_init2=tflearn.initializations.uniform(minval=-tf.div(1.0,tf.sqrt(float(400))),maxval=tf.div(1.0,tf.sqrt(float(400))))
-		t1=tflearn.fully_connected(net,300,weights_init=w_init2,regularizer='L2',weight_decay=self.weight_decay)
-		w_init3=tflearn.initializations.uniform(minval=-tf.div(1.0,tf.sqrt(float(self.action_dim))),maxval=tf.div(1.0,tf.sqrt(float(self.action_dim))))
-		t2=tflearn.fully_connected(actions,300,weights_init=w_init3,regularizer='L2',weight_decay=self.weight_decay)
-		net=tflearn.activations.relu(tf.matmul(net,t1.W)+tf.matmul(actions,t2.W))
+		#We can use tflearn.layers.merge_ops.merge to do this too.
+		weight_init_fc11=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		weight_init_fc12=tflearn.initializations.uniform(minval=minv,maxval=maxv)
+		t1=tflearn.fully_connected(net,200,weights_init=weight_init_fc11,regularizer='L2',weight_decay=self.weight_decay)
+		t2=tflearn.fully_connected(actions,200,weights_init=weight_init_fc12,regularizer='L2',weight_decay=self.weight_decay)
+		#net-->[None,96,96,32]
+		#t1.W-->[294912,200]
+		#96*96*32=294912
+		#So we should reshape the tensor 'net' to [None,294912]
+		#The order of the input sequence [None, 294912] dosen't matters.
+		net_reshape=tf.reshape(net,shape=[-1,tf.shape(t1.W)[0]])    #[None,294912]
+		net=tflearn.activations.relu(tf.matmul(net_reshape,t1.W)+tf.matmul(actions,t2.W))
 
-		#As in the paper, final layer weights are initialized to Uniform[-3e-3,3e-3]
-		w_init=tflearn.initializations.uniform(minval=-3e-3,maxval=3e-3)
+		w_init=tflearn.initializations.uniform(minval=-3e-4,maxval=3e-4)
 		outputs=tflearn.fully_connected(net,1,weights_init=w_init,regularizer='L2',weight_decay=self.weight_decay)
 		return inputs,actions,outputs
 
@@ -345,15 +403,18 @@ def train(sess,env,args,actor,critic,actor_noise):
 			#Select an action using the behavior actor network, and add exploration noise to it.
 			#actor_noise(type OrnsteinUhlenbeckActionNoise) is initialized in the main function.
 			#batch_size=1, thus (1,actor.state_dim)
-			a=actor.predict(np.reshape(s,(1,actor.state_dim)))+actor_noise()    #not a batch, just run an episode
+			#adim_t means actor state dim temp
+			adim_t=actor.state_dim
+			a=actor.predict(np.reshape(s,(1,adim_t[0],adim_t[1],adim_t[2])))+actor_noise()    #not a batch, just run an episode
+			print a
 
 			#For example, input=[[1,2,3]], output=[[0]], so we should use a[0]
 			s_,r,terminal,info=env.step(a[0])
 			
 			#The shape of a is [batch_size,1,1], so we should reshape this
 			#replay_buffer.append(s,a,r,terminal,s_)
-			replay_buffer.append(np.reshape(s, (actor.state_dim,)), np.reshape(a, (actor.action_dim,)),  \
-				r, terminal, np.reshape(s_, (actor.state_dim,)))
+			replay_buffer.append(np.reshape(s, (adim_t[0],adim_t[1],adim_t[2],)), np.reshape(a, (actor.action_dim,)),  \
+				r, terminal, np.reshape(s_, (adim_t[0],adim_t[1],adim_t[2],)))
 
 
 			if replay_buffer.size()>int(args['batch_size']):
@@ -362,6 +423,7 @@ def train(sess,env,args,actor,critic,actor_noise):
 
 				#Calculate the target Q batch
 				target_q=critic.predict_target(batch_s_,actor.predict_target(batch_s_))
+				# print actor.predict_target(batch_s_)[0]
 
 				y_i=[]
 
@@ -390,6 +452,7 @@ def train(sess,env,args,actor,critic,actor_noise):
 
 				#Update the actor policy using the sampled gradient
 				a_outputs=actor.predict(batch_s)
+
 				a_gradient=critic.action_gradients(batch_s,a_outputs)
 				actor.train(batch_s,a_gradient[0])
 
@@ -423,13 +486,21 @@ def main(args):
 		tf.set_random_seed(int(args['random_seed']))
 		env.seed(int(args['random_seed']))
 
-		state_dim=env.observation_space.shape[0]
+		#While in low-dim problem, state_dim=env.observation_space.shape[0]
+		#Cause it's Box(3,)
+		#But for raw-pixel inputs, it's Box(96,96,3)
+		state_dim=env.observation_space.shape
+		#action_dim--> the same as low-dim
 		action_dim=env.action_space.shape[0]
-		action_bound=env.action_space.high
-		
+		#TODO:
+		action_bound=[env.action_space.high,env.action_space.low]
+
+		#For low-dim problem
 		#Ensure action bound is symmetric
 		#Cause this is the minimal feasible version
-		assert(env.action_space.high==-env.action_space.low)
+		# assert(env.action_space.high==-env.action_space.low)
+		#For raw-pixel inputs
+		#Nothing to assert
 
 		actor=Actor(sess,state_dim,action_dim,action_bound,float(args['actor_lr']),float(args['tau']),float(args['batch_size']))
 
@@ -457,7 +528,7 @@ def main(args):
 if __name__ == "__main__":
 
 	#File dir
-	path='Pendulum/exp4_ddpg_L2'
+	path='CarRacing/exp1_ddpg_monitor'
 
 	parser=argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
