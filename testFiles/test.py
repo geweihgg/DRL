@@ -191,21 +191,49 @@
 # print sess.run(b)
 
 #-------------------------------------------------------------
-import tensorflow as tf
+# import tensorflow as tf
 
-sess=tf.InteractiveSession()
+# sess=tf.InteractiveSession()
 
-a=tf.constant(value=[1,2,3,4,5,6],dtype=tf.float32,shape=[2,3])
+# a=tf.constant(value=[1,2,3,4,5,6],dtype=tf.float32,shape=[2,3])
 
-b=tf.constant(value=[4,5,6],dtype=tf.float32,shape=[1,3])
-b=tf.tile(b,[tf.shape(a)[0],1])
+# b=tf.constant(value=[4,5,6],dtype=tf.float32,shape=[1,3])
+# b=tf.tile(b,[tf.shape(a)[0],1])
 
-c=tf.constant(value=[3,5,7],dtype=tf.float32,shape=[1,3])
-print sess.run(b)
+# c=tf.constant(value=[3,5,7],dtype=tf.float32,shape=[1,3])
+# print sess.run(b)
 
-x=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
-y=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
-z=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
-print sess.run(tf.concat([x[0],y[0],z[0]],0))
+# x=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+# y=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+# z=tf.constant(value=[1],dtype=tf.float32,shape=[1,1])
+# print sess.run(tf.concat([x[0],y[0],z[0]],0))
 
-print sess.run(tf.multiply(a,b)+c)
+# print sess.run(tf.multiply(a,b)+c)
+
+#-------------------------------------------------------------
+import gym
+from gym import wrappers
+# env = gym.make('CarRacing-v0')
+# env=gym.make('LunarLanderContinuous-v2')
+env=gym.make('CarRacing-v0')
+path='/home/moran/DRL/stochastic_policy/monitor'
+env=wrappers.Monitor(env,path)
+
+for i_episode in range(100):
+	observation = env.reset()
+	for t in range(1000):
+		env.render()
+		# print(observation)
+		action = env.action_space.sample()
+		print action
+		observation, reward, done, info = env.step(action)
+		if done:
+			print("Episode finished after {} timesteps".format(t+1))
+			break
+
+
+
+
+
+
+

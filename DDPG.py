@@ -439,13 +439,15 @@ def main(args):
 		#According to the paper, mu is zero
 		actor_noise=OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
 
-		#TODO: Wrappers
-		if args['use_gym_monitor']:
-			if not args['render_env']:    #render_env=False
-				env=wrappers.Monitor( \
-					env, args['monitor_dir'],video_callable=False,force=True)
-		else:
-			env=wrappers.Monitor(env,args['monitor_dir'],force=True)
+		# #TODO: Wrappers
+		# if args['use_gym_monitor']:
+		# 	if not args['render_env']:    #render_env=False
+		# 		env=wrappers.Monitor( \
+		# 			env, args['monitor_dir'],video_callable=False,force=True)
+		# else:
+		# 	env=wrappers.Monitor(env,args['monitor_dir'],force=True)
+		env=wrappers.Monitor(env,args['monitor_dir'])
+
 
 		train(sess,env,args,actor,critic,actor_noise)
 
@@ -457,7 +459,7 @@ def main(args):
 if __name__ == "__main__":
 
 	#File dir
-	path='Pendulum/exp4_ddpg_L2'
+	path='Pendulum/exp6_ddpg_test2'
 
 	parser=argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
@@ -479,13 +481,13 @@ if __name__ == "__main__":
 	parser.add_argument('--max-episodes', help='max num of episodes to do while training', default=50000)
 	parser.add_argument('--max-step-num', help='max step of 1 episode', default=1000)
 	parser.add_argument('--render-env', help='render the gym env', action='store_true')
-	parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
+	# parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
 	parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./monitor/'+path)
 	parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./tensorboard/'+path)
 
 	#We use the gym wrappers to save the training records
 	parser.set_defaults(render_env=True)
-	parser.set_defaults(use_gym_monitor=True)
+	# parser.set_defaults(use_gym_monitor=True)
 
 	args = vars(parser.parse_args())
 
